@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('transactions') }} — Equilibrium{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ t('transactions') }}</h1>
+
+        <p>
+            {% if lang == 'fr' %}
+                Ajoute, modifie ou supprime tes revenus et dépenses.
+            {% else %}
+                Add, edit or delete your income and expenses.
+            {% endif %}
+        </p>
+    </div>
+
+    <a href="{{ url_for('export_csv') }}" class="btn btn-outline-dark">
+        {{ t('export_csv') }}
+    </a>
+</div>
+
+<section class="card">
+    <div class="card-header">
+        <h2>{{ t('add_transaction') }}</h2>
+    </div>
+
+    <form method="POST" action="{{ url_for('add_transaction') }}" class="transaction-form">
+        <div class="form-group">
+            <label for="add-type">
+                {% if lang == 'fr' %}Type{% else %}Type{% endif %}
+            </label>
+
+            <select name="type" id="add-type" required>
+                <option value="income">{{ t('income') }}</option>
+                <option value="expense">{{ t('expense') }}</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="add-category">{{ t('category') }}</label>
+
+            <select name="category_id" id="add-category" required>
+                {% for category in categories %}
+                    <option value="{{ category.id }}">
+                        {{ category.name }}
+                        ({{ t('income') if category.type == 'income' else t('expense') }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="add-amount">{{ t('amount') }}</label>
+
+            <input
+                type="number"
+                name="amount"
+                id="add-amount"
+                min="0.01"
+                step="0.01"
+                placeholder="{% if lang == 'fr' %}Exemple : 50000{% else %}Example: 50000{% endif %}"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="add-date">{{ t('date') }}</label>
+
+            <input
+                type="date"
+                name="transaction_date"
+                id="add-date"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="add-description">{{ t('description') }}</label>
+
+            <input
+                type="text"
+                name="description"
+                id="add-description"
+                placeholder="{% if lang == 'fr' %}Exemple : Salaire du mois{% else %}Example: Monthly salary{% endif %}"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            {{ t('save') }}
+        </button>
+    </form>
+</section>
+
+<section class="card filters-card">
+    <div class="card-header">
+        <h2>
+            {% if lang == 'fr' %}
+                Filtrer les transactions
+            {% else %}
+                Filter transactions
+            {% endif %}
+        </h2>
+
+        {% if total_transactions is defined %}
+            <span class="transaction-count">
+                {% if lang == 'fr' %}
+                    {{ total_transactions }} transaction{{ 's' if total_transactions > 1 }}
+                {% else %}
+                    {{ total_transactions }} transaction{{ 's' if total_transactions > 1 }}
+                {% endif %}
+            </span>
+        {% endif %}
+    </div>
+
+    <form method="GET" action="{{ url_for('transactions') }}" class="filters-form">
+        <div class="filter-group">
+            <label for="month">
+                {% if lang == 'fr' %}Période{% else %}Period{% endif %}
+            </label>
+
+            <select name="month" id="month">
+                <option value="">
+                    {% if lang == 'fr' %}Tous les mois{% else %}All months{% endif %}
+                </option>
+
+                {% for month in available_months|default([]) %}
+                    <option
+                        value="{{ month }}"
+                        {% if selected_month == month %}selected{% endif %}
+                    >
+                        {{ month }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="type">
+                {% if lang == 'fr' %}Type{% else %}Type{% endif %}
+            </label>
+
+            <select name="type" id="type">
+                <option value="">
+                    {% if lang == 'fr' %}Tous{% else %}All{% endif %}
+                </option>
+
+                <option value="income" {% if selected_type == 'income' %}selected{% endif %}>
+                    {% if lang == 'fr' %}Revenus{% else %}Income{% endif %}
+                </option>
+
+                <option value="expense" {% if selected_type == 'expense' %}selected{% endif %}>
+                    {% if lang == 'fr' %}Dépenses{% else %}Expenses{% endif %}
+                </option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="category">{{ t('category') }}</label>
+
+            <select name="category" id="category">
+                <option value="">
+                    {% if lang == 'fr' %}Toutes{% else %}All{% endif %}
+                </option>
+
+                {% for category in categories %}
+                    <option
+                        value="{{ category.id }}"
+                        {% if selected_category|string == category.id|string %}selected{% endif %}
+                    >
+                        {{ category.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label for="search">{{ t('search') }}</label>
+
+            <input
+                type="text"
+                name="search"
+                id="search"
+                value="{{ search|default('') }}"
+                placeholder="{% if lang == 'fr' %}Description ou catégorie{% else %}Description or category{% endif %}"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            {{ t('filter') }}
+        </button>
+
+        <a href="{{ url_for('transactions') }}" class="btn btn-outline-dark">
+            {{ t('reset') }}
+        </a>
+    </form>
+</section>
+
+<section class="card">
+    <div class="card-header">
+        <h2>
+            {% if lang == 'fr' %}
+                Historique des transactions
+            {% else %}
+                Transaction history
+            {% endif %}
+        </h2>
+    </div>
+
+    {% if transactions %}
+        <div class="table-wrapper">
+            <table class="transactions-table">
+                <thead>
+                    <tr>
+                        <th>{{ t('date') }}</th>
+                        <th>{{ t('category') }}</th>
+                        <th>{{ t('description') }}</th>
+                        <th>{% if lang == 'fr' %}Type{% else %}Type{% endif %}</th>
+                        <th>{{ t('amount') }}</th>
+                        <th>{% if lang == 'fr' %}Actions{% else %}Actions{% endif %}</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.transaction_date }}</td>
+
+                            <td>
+                                <span
+                                    class="category-badge"
+                                    data-color="{{ transaction.category_color }}"
+                                >
+                                    {{ transaction.category_name }}
+                                </span>
+                            </td>
+
+                            <td>{{ transaction.description or '—' }}</td>
+
+                            <td>
+                                <span class="type-badge {{ transaction.type }}">
+                                    {{ t('income') if transaction.type == 'income' else t('expense') }}
+                                </span>
+                            </td>
+
+                            <td class="{{ 'positive' if transaction.type == 'income' else 'negative' }}">
+                                {{ '+' if transaction.type == 'income' else '-' }}
+                                {{ "%.2f"|format(transaction.amount|float) }} XOF
+                            </td>
+
+                            <td>
+                                <div class="action-buttons">
+                                    <button
+                                        type="button"
+                                        class="btn-icon edit edit-transaction-button"
+                                        data-edit-url="{{ url_for('edit_transaction', transaction_id=transaction.id) }}"
+                                        data-type="{{ transaction.type }}"
+                                        data-category="{{ transaction.category_id }}"
+                                        data-amount="{{ transaction.amount }}"
+                                        data-description="{{ transaction.description or '' }}"
+                                        data-date="{{ transaction.transaction_date }}"
+                                        title="{{ t('edit') }}"
+                                    >
+                                        ✏️
+                                    </button>
+
+                                    <form
+                                        method="POST"
+                                        action="{{ url_for('delete_transaction', transaction_id=transaction.id) }}"
+                                        class="delete-form"
+                                        data-confirm-message="{% if lang == 'fr' %}Supprimer cette transaction ?{% else %}Delete this transaction?{% endif %}"
+                                    >
+                                        <button
+                                            type="submit"
+                                            class="btn-icon delete"
+                                            title="{{ t('delete') }}"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if total_pages|default(1) > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}
+                    <a
+                        href="{{ url_for('transactions', page=page - 1, month=selected_month, type=selected_type, category=selected_category, search=search|default('')) }}"
+                        class="btn btn-outline-dark"
+                    >
+                        {% if lang == 'fr' %}Précédent{% else %}Previous{% endif %}
+                    </a>
+                {% endif %}
+
+                <span class="pagination-info">
+                    {% if lang == 'fr' %}
+                        Page {{ page }} sur {{ total_pages }}
+                    {% else %}
+                        Page {{ page }} of {{ total_pages }}
+                    {% endif %}
+                </span>
+
+                {% if page < total_pages %}
+                    <a
+                        href="{{ url_for('transactions', page=page + 1, month=selected_month, type=selected_type, category=selected_category, search=search|default('')) }}"
+                        class="btn btn-outline-dark"
+                    >
+                        {% if lang == 'fr' %}Suivant{% else %}Next{% endif %}
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <p class="empty-message">
+            {% if lang == 'fr' %}
+                Aucune transaction trouvée pour ces filtres.
+            {% else %}
+                No transactions found for these filters.
+            {% endif %}
+        </p>
+    {% endif %}
+</section>
+
+<div class="modal" id="editModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>{{ t('edit_transaction') }}</h2>
+
+            <button
+                type="button"
+                class="close-btn"
+                id="closeEditModal"
+                aria-label="{% if lang == 'fr' %}Fermer{% else %}Close{% endif %}"
+            >
+                ×
+            </button>
+        </div>
+
+        <form method="POST" id="editForm">
+            <div class="form-group">
+                <label for="edit-type">
+                    {% if lang == 'fr' %}Type{% else %}Type{% endif %}
+                </label>
+
+                <select name="type" id="edit-type" required>
+                    <option value="income">{{ t('income') }}</option>
+                    <option value="expense">{{ t('expense') }}</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-category">{{ t('category') }}</label>
+
+                <select name="category_id" id="edit-category" required>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">
+                            {{ category.name }}
+                            ({{ t('income') if category.type == 'income' else t('expense') }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-amount">{{ t('amount') }}</label>
+
+                <input
+                    type="number"
+                    name="amount"
+                    id="edit-amount"
+                    step="0.01"
+                    min="0.01"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="edit-date">{{ t('date') }}</label>
+
+                <input
+                    type="date"
+                    name="transaction_date"
+                    id="edit-date"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="edit-description">{{ t('description') }}</label>
+
+                <input
+                    type="text"
+                    name="description"
+                    id="edit-description"
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                {% if lang == 'fr' %}Mettre à jour{% else %}Update{% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const editModal = document.getElementById("editModal");
+    const editForm = document.getElementById("editForm");
+    const closeEditModal = document.getElementById("closeEditModal");
+
+    function closeModal() {
+        if (editModal) {
+            editModal.classList.remove("open");
+        }
+    }
+
+    document.querySelectorAll(".edit-transaction-button").forEach(function (button) {
+        button.addEventListener("click", function () {
+            if (!editModal || !editForm) {
+                return;
+            }
+
+            editForm.action = button.dataset.editUrl;
+
+            document.getElementById("edit-type").value = button.dataset.type;
+            document.getElementById("edit-category").value = button.dataset.category;
+            document.getElementById("edit-amount").value = button.dataset.amount;
+            document.getElementById("edit-description").value = button.dataset.description;
+            document.getElementById("edit-date").value = button.dataset.date;
+
+            editModal.classList.add("open");
+        });
+    });
+
+    if (closeEditModal) {
+        closeEditModal.addEventListener("click", closeModal);
+    }
+
+    if (editModal) {
+        editModal.addEventListener("click", function (event) {
+            if (event.target === editModal) {
+                closeModal();
+            }
+        });
+    }
+
+    document.querySelectorAll(".delete-form").forEach(function (form) {
+        form.addEventListener("submit", function (event) {
+            const message = form.dataset.confirmMessage || "Delete this transaction?";
+
+            if (!confirm(message)) {
+                event.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

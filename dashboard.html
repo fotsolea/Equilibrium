@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('dashboard') }} — Equilibrium{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="reference-dashboard">
+
+    <header class="reference-page-header">
+        <div>
+            <h1>
+                {% if lang == 'fr' %}
+                    Vue financière
+                {% else %}
+                    Financial Overview
+                {% endif %}
+            </h1>
+
+            <p>
+                {% if lang == 'fr' %}
+                    Bon retour, voici l’état de tes finances.
+                {% else %}
+                    Welcome back, here's what's happening with your money.
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="reference-header-actions">
+            <form method="GET" action="{{ url_for('dashboard') }}" class="reference-month-form">
+                <span class="reference-calendar-icon">▣</span>
+
+                <input
+                    type="month"
+                    id="month"
+                    name="month"
+                    value="{{ selected_month }}"
+                    onchange="this.form.submit()"
+                    aria-label="{{ t('date') }}"
+                >
+            </form>
+
+            <a href="{{ url_for('export_csv') }}" class="reference-btn reference-btn-secondary">
+                <span>↥</span>
+                {{ t('export_csv') }}
+            </a>
+
+            <a href="{{ url_for('transactions') }}" class="reference-btn reference-btn-primary">
+                <span>＋</span>
+                {{ t('add_transaction') }}
+            </a>
+        </div>
+    </header>
+
+    <section class="reference-stat-grid">
+        <article class="reference-stat-card">
+            <div class="reference-stat-top">
+                <span>
+                    {% if lang == 'fr' %}Solde total{% else %}Total Balance{% endif %}
+                </span>
+
+                <span class="reference-stat-icon reference-purple-icon">▣</span>
+            </div>
+
+            <strong>{{ "%.2f"|format(balance) }} XOF</strong>
+
+            <small class="reference-trend reference-up">
+                {% if lang == 'fr' %}
+                    ↗ Solde actuel
+                {% else %}
+                    ↗ Current balance
+                {% endif %}
+            </small>
+        </article>
+
+        <article class="reference-stat-card">
+            <div class="reference-stat-top">
+                <span>
+                    {% if lang == 'fr' %}Revenus du mois{% else %}Monthly Income{% endif %}
+                </span>
+
+                <span class="reference-stat-icon reference-green-icon">↑</span>
+            </div>
+
+            <strong>{{ "%.2f"|format(total_income) }} XOF</strong>
+
+            <small class="reference-trend reference-up">
+                {% if lang == 'fr' %}
+                    ↗ Revenus du mois
+                {% else %}
+                    ↗ Income this month
+                {% endif %}
+            </small>
+        </article>
+
+        <article class="reference-stat-card">
+            <div class="reference-stat-top">
+                <span>
+                    {% if lang == 'fr' %}Dépenses du mois{% else %}Monthly Expenses{% endif %}
+                </span>
+
+                <span class="reference-stat-icon reference-red-icon">↓</span>
+            </div>
+
+            <strong>{{ "%.2f"|format(total_expense) }} XOF</strong>
+
+            <small class="reference-trend reference-down">
+                {% if lang == 'fr' %}
+                    ↘ Dépenses du mois
+                {% else %}
+                    ↘ Expenses this month
+                {% endif %}
+            </small>
+        </article>
+    </section>
+
+    <section class="reference-chart-grid">
+        <article class="reference-card reference-evolution-card">
+            <div class="reference-card-header">
+                <h2>
+                    {% if lang == 'fr' %}
+                        Évolution des dépenses
+                    {% else %}
+                        Spending Evolution
+                    {% endif %}
+                </h2>
+
+                <span class="reference-period-label">
+                    {% if lang == 'fr' %}
+                        ✓ 6 derniers mois
+                    {% else %}
+                        ✓ Last 6 Months
+                    {% endif %}
+                </span>
+            </div>
+
+            {% if spending_evolution %}
+                <div class="reference-chart-large">
+                    <canvas id="spendingEvolutionChart"></canvas>
+                </div>
+            {% else %}
+                <div class="reference-empty">
+                    {% if lang == 'fr' %}
+                        Ajoute des dépenses pour voir l’évolution sur 6 mois.
+                    {% else %}
+                        Add expenses to see the 6-month evolution.
+                    {% endif %}
+                </div>
+            {% endif %}
+        </article>
+
+        <article class="reference-card reference-category-card">
+            <div class="reference-card-header">
+                <h2>
+                    {% if lang == 'fr' %}
+                        Dépenses par catégorie
+                    {% else %}
+                        Expenses by Category
+                    {% endif %}
+                </h2>
+            </div>
+
+            {% if expenses_by_category %}
+                <div class="reference-chart-donut">
+                    <canvas id="dashboardChart"></canvas>
+                </div>
+            {% else %}
+                <div class="reference-empty">
+                    {% if lang == 'fr' %}
+                        Aucune dépense ce mois-ci.
+                    {% else %}
+                        No expenses this month.
+                    {% endif %}
+                </div>
+            {% endif %}
+        </article>
+    </section>
+
+    <section class="reference-bottom-grid">
+        <article class="reference-card reference-transactions-card">
+            <div class="reference-card-header reference-transactions-header">
+                <h2>
+                    {% if lang == 'fr' %}
+                        Transactions récentes
+                    {% else %}
+                        Recent Transactions
+                    {% endif %}
+                </h2>
+
+                <a href="{{ url_for('transactions') }}" class="reference-see-all">
+                    {% if lang == 'fr' %}Voir tout{% else %}See All{% endif %}
+                </a>
+            </div>
+
+            {% if recent_transactions %}
+                <ul class="reference-transaction-list">
+                    {% for transaction in recent_transactions %}
+                        <li class="reference-transaction-row">
+                            <div class="reference-transaction-left">
+                                <span class="reference-transaction-icon">
+                                    {% if transaction.type == 'income' %}
+                                        ▣
+                                    {% elif loop.index == 1 %}
+                                        ◉
+                                    {% elif loop.index == 2 %}
+                                        ♜
+                                    {% else %}
+                                        ◈
+                                    {% endif %}
+                                </span>
+
+                                <div>
+                                    <strong>
+                                        {{ transaction.description or transaction.category_name }}
+                                    </strong>
+
+                                    <span>{{ transaction.category_name }}</span>
+                                </div>
+                            </div>
+
+                            <div class="reference-transaction-right">
+                                <strong class="{{ 'reference-income' if transaction.type == 'income' else 'reference-expense' }}">
+                                    {{ '+' if transaction.type == 'income' else '-' }}{{ "%.2f"|format(transaction.amount|float) }} XOF
+                                </strong>
+
+                                <span>{{ transaction.transaction_date.strftime('%d %b') if transaction.transaction_date else '' }}</span>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="reference-empty">
+                    {% if lang == 'fr' %}
+                        Aucune transaction pour ce mois.
+                    {% else %}
+                        No transactions for this month.
+                    {% endif %}
+                </div>
+            {% endif %}
+        </article>
+
+        <aside class="reference-card reference-budget-card">
+            <div class="reference-card-header">
+                <h2>
+                    {% if lang == 'fr' %}
+                        État des budgets
+                    {% else %}
+                        Budget Status
+                    {% endif %}
+                </h2>
+            </div>
+
+            {% if budget_status %}
+                <div class="reference-budget-list">
+                    {% for budget in budget_status %}
+                        <div class="reference-budget-item">
+                            <div class="reference-budget-line">
+                                <span>{{ budget.category_name }}</span>
+
+                                <strong class="{{ 'reference-budget-danger' if budget.actual_percentage >= 80 else 'reference-budget-ok' }}">
+                                    {{ "%.0f"|format(budget.actual_percentage) }}%
+                                </strong>
+                            </div>
+
+                            <div class="reference-progress-track">
+                                <div
+                                    class="reference-progress-fill {{ 'reference-progress-danger' if budget.actual_percentage >= 80 else 'reference-progress-ok' }}"
+                                    data-width="{{ budget.percentage }}"
+                                ></div>
+                            </div>
+
+                            <small>
+                                {% if lang == 'fr' %}
+                                    {{ "%.2f"|format(budget.spent) }} XOF sur
+                                    {{ "%.2f"|format(budget.amount_limit) }} XOF
+                                {% else %}
+                                    {{ "%.2f"|format(budget.spent) }} XOF of
+                                    {{ "%.2f"|format(budget.amount_limit) }} XOF
+                                {% endif %}
+                            </small>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% for budget in budget_status %}
+                    {% if budget.actual_percentage >= 80 %}
+                        <div class="reference-budget-alert">
+                            <span>⚠</span>
+
+                            <p>
+                                {% if lang == 'fr' %}
+                                    Tu as dépensé {{ "%.0f"|format(budget.actual_percentage) }} %
+                                    de ton budget {{ budget.category_name }}.
+                                    Pense à ralentir.
+                                {% else %}
+                                    You've spent {{ "%.0f"|format(budget.actual_percentage) }}% of your
+                                    {{ budget.category_name }} budget. Consider slowing down.
+                                {% endif %}
+                            </p>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="reference-empty">
+                    {% if lang == 'fr' %}
+                        Aucun budget défini pour ce mois.
+                    {% else %}
+                        No budget defined for this month.
+                    {% endif %}
+
+                    <br>
+
+                    <a href="{{ url_for('budgets') }}" class="reference-see-all">
+                        {% if lang == 'fr' %}
+                            Créer un budget
+                        {% else %}
+                            Create a budget
+                        {% endif %}
+                    </a>
+                </div>
+            {% endif %}
+        </aside>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if expenses_by_category %}
+<script id="dashboardChartData" type="application/json">
+{{ expenses_by_category | map(attribute='name') | list | tojson }}
+</script>
+
+<script id="dashboardChartValues" type="application/json">
+{{ expenses_by_category | map(attribute='total') | map('float') | list | tojson }}
+</script>
+
+<script id="dashboardChartColors" type="application/json">
+{{ expenses_by_category | map(attribute='color') | list | tojson }}
+</script>
+{% endif %}
+
+{% if spending_evolution %}
+<script id="spendingEvolutionLabels" type="application/json">
+{{ spending_evolution | map(attribute='month') | list | tojson }}
+</script>
+
+<script id="spendingEvolutionValues" type="application/json">
+{{ spending_evolution | map(attribute='total') | map('float') | list | tojson }}
+</script>
+{% endif %}
+{% endblock %}

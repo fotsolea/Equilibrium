@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('analytics') }} — Equilibrium{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ t('analytics') }}</h1>
+        <p>
+            {% if lang == 'fr' %}
+                Suis l’évolution de tes revenus et dépenses.
+            {% else %}
+                Track the evolution of your income and expenses.
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="period-buttons">
+        <a
+            href="{{ url_for('analytics', months=6, category_id=selected_category) }}"
+            class="btn {{ 'btn-primary' if months_number == 6 else 'btn-outline-dark' }}"
+        >
+            6 mois
+        </a>
+
+        <a
+            href="{{ url_for('analytics', months=12, category_id=selected_category) }}"
+            class="btn {{ 'btn-primary' if months_number == 12 else 'btn-outline-dark' }}"
+        >
+            12 mois
+        </a>
+
+        <a
+            href="{{ url_for('export_csv', months=months_number, category_id=selected_category) }}"
+            class="btn btn-primary"
+        >
+            ↥ {{ t('export_csv') }}
+        </a>
+    </div>
+</div>
+
+<section class="card">
+    <div class="card-header">
+        <h2>
+            {% if lang == 'fr' %}
+                Filtrer par catégorie
+            {% else %}
+                Filter by category
+            {% endif %}
+        </h2>
+    </div>
+
+    <form method="GET" action="{{ url_for('analytics') }}" class="filters-form">
+        <input type="hidden" name="months" value="{{ months_number }}">
+
+        <div class="form-group">
+            <label for="category_id">
+                {% if lang == 'fr' %}
+                    Catégorie
+                {% else %}
+                    Category
+                {% endif %}
+            </label>
+
+            <select name="category_id" id="category_id">
+                <option value="">
+                    {% if lang == 'fr' %}
+                        Toutes les catégories
+                    {% else %}
+                        All categories
+                    {% endif %}
+                </option>
+
+                {% for category in categories %}
+                    <option
+                        value="{{ category.id }}"
+                        {% if selected_category == category.id|string %}selected{% endif %}
+                    >
+                        {{ category.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            {% if lang == 'fr' %}
+                Filtrer
+            {% else %}
+                Filter
+            {% endif %}
+        </button>
+
+        <a href="{{ url_for('analytics', months=months_number) }}" class="btn btn-outline-dark">
+            {% if lang == 'fr' %}
+                Réinitialiser
+            {% else %}
+                Reset
+            {% endif %}
+        </a>
+    </form>
+</section>
+
+<div class="stats-grid">
+    <div class="stat-card income">
+        <div class="stat-icon">↑</div>
+
+        <div>
+            <span class="stat-label">
+                {% if lang == 'fr' %}
+                    Revenus
+                {% else %}
+                    Income
+                {% endif %}
+            </span>
+
+            <h2>{{ "%.2f"|format(total_income|default(0)) }} XOF</h2>
+        </div>
+    </div>
+
+    <div class="stat-card expense">
+        <div class="stat-icon">↓</div>
+
+        <div>
+            <span class="stat-label">
+                {% if lang == 'fr' %}
+                    Dépenses
+                {% else %}
+                    Expenses
+                {% endif %}
+            </span>
+
+            <h2>{{ "%.2f"|format(total_expense|default(0)) }} XOF</h2>
+        </div>
+    </div>
+
+    <div class="stat-card balance">
+        <div class="stat-icon">💰</div>
+
+        <div>
+            <span class="stat-label">
+                {% if lang == 'fr' %}
+                    Épargne
+                {% else %}
+                    Savings
+                {% endif %}
+            </span>
+
+            <h2>{{ "%.2f"|format(savings|default(0)) }} XOF</h2>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <section class="card">
+        <div class="card-header">
+            <h2>
+                {% if lang == 'fr' %}
+                    Évolution mensuelle
+                {% else %}
+                    Monthly evolution
+                {% endif %}
+            </h2>
+        </div>
+
+        {% if monthly_evolution %}
+            <div class="chart-container">
+                <canvas id="evolutionChart"></canvas>
+            </div>
+        {% else %}
+            <p class="empty-message">
+                {% if lang == 'fr' %}
+                    Aucune transaction enregistrée sur cette période.
+                {% else %}
+                    No transactions recorded for this period.
+                {% endif %}
+            </p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>
+                {% if lang == 'fr' %}
+                    Dépenses par catégorie
+                {% else %}
+                    Expenses by category
+                {% endif %}
+            </h2>
+        </div>
+
+        {% if expenses_by_category %}
+            <div class="chart-container">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        {% else %}
+            <p class="empty-message">
+                {% if lang == 'fr' %}
+                    Aucune dépense enregistrée sur cette période.
+                {% else %}
+                    No expenses recorded for this period.
+                {% endif %}
+            </p>
+        {% endif %}
+    </section>
+</div>
+
+<section class="card">
+    <div class="card-header">
+        <h2>
+            {% if lang == 'fr' %}
+                Répartition des dépenses
+            {% else %}
+            Expense breakdown
+            {% endif %}
+        </h2>
+    </div>
+
+    {% if expenses_by_category %}
+        {% set total_category_expenses = expenses_by_category | sum(attribute='total') %}
+
+        <div class="table-wrapper">
+            <table class="transactions-table">
+                <thead>
+                    <tr>
+                        <th>
+                            {% if lang == 'fr' %}
+                                Catégorie
+                            {% else %}
+                                Category
+                            {% endif %}
+                        </th>
+
+                        <th>
+                            {% if lang == 'fr' %}
+                                Total dépensé
+                            {% else %}
+                                Total spent
+                            {% endif %}
+                        </th>
+
+                        <th>
+                            {% if lang == 'fr' %}
+                                Part
+                            {% else %}
+                                Share
+                            {% endif %}
+                        </th>
+
+                        <th>
+                            {% if lang == 'fr' %}
+                                Exporter
+                            {% else %}
+                                Export
+                            {% endif %}
+                        </th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for item in expenses_by_category %}
+                        <tr>
+                            <td>
+                                <span class="category-badge" data-color="{{ item.color }}">
+                                    {{ item.name }}
+                                </span>
+                            </td>
+
+                            <td class="negative">
+                                {{ "%.2f"|format(item.total|float) }} XOF
+                            </td>
+
+                            <td>
+                                {% if total_category_expenses|float > 0 %}
+                                    {{ "%.1f"|format(
+                                        (item.total|float / total_category_expenses|float) * 100
+                                    ) }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <a
+                                    href="{{ url_for('export_csv', months=months_number, category_id=item.id) }}"
+                                    class="btn btn-outline-dark"
+                                >
+                                    ↥ CSV
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-message">
+            {% if lang == 'fr' %}
+                Ajoute des dépenses pour voir leur répartition.
+            {% else %}
+                Add expenses to see their breakdown.
+            {% endif %}
+        </p>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if expenses_by_category %}
+<script id="analyticsCategoryLabels" type="application/json">
+{{ expenses_by_category | map(attribute='name') | list | tojson }}
+</script>
+
+<script id="analyticsCategoryValues" type="application/json">
+{{ expenses_by_category | map(attribute='total') | map('float') | list | tojson }}
+</script>
+
+<script id="analyticsCategoryColors" type="application/json">
+{{ expenses_by_category | map(attribute='color') | list | tojson }}
+</script>
+{% endif %}
+
+{% if monthly_evolution %}
+<script id="analyticsEvolutionLabels" type="application/json">
+{{ monthly_evolution | map(attribute='month') | list | tojson }}
+</script>
+
+<script id="analyticsEvolutionIncome" type="application/json">
+{{ monthly_evolution | map(attribute='income') | map('float') | list | tojson }}
+</script>
+
+<script id="analyticsEvolutionExpenses" type="application/json">
+{{ monthly_evolution | map(attribute='expenses') | map('float') | list | tojson }}
+</script>
+{% endif %}
+{% endblock %}

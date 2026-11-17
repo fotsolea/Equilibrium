@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('budgets') }} — Equilibrium{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ t('budgets') }}</h1>
+
+        <p>
+            {% if lang == 'fr' %}
+                Gère ton budget total et tes limites par catégorie.
+            {% else %}
+                Manage your total budget and category limits.
+            {% endif %}
+        </p>
+    </div>
+
+    <form method="GET" action="{{ url_for('budgets') }}" class="month-filter">
+        <label for="month">
+            {% if lang == 'fr' %}Mois{% else %}Month{% endif %}
+        </label>
+
+        <input
+            type="month"
+            id="month"
+            name="month"
+            value="{{ selected_month }}"
+            onchange="this.form.submit()"
+        >
+    </form>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card balance">
+        <div class="stat-icon">🎯</div>
+
+        <div>
+            <span class="stat-label">
+                {% if lang == 'fr' %}Budget total{% else %}Total budget{% endif %}
+            </span>
+
+            <h2>{{ "%.2f"|format(total_budget|default(0)) }} XOF</h2>
+        </div>
+    </div>
+
+    <div class="stat-card expense">
+        <div class="stat-icon">↓</div>
+
+        <div>
+            <span class="stat-label">
+                {% if lang == 'fr' %}Budget dépensé{% else %}Budget spent{% endif %}
+            </span>
+
+            <h2>{{ "%.2f"|format(total_spent|default(0)) }} XOF</h2>
+        </div>
+    </div>
+
+    <div class="stat-card income">
+        <div class="stat-icon">💰</div>
+
+        <div>
+            <span class="stat-label">
+                {% if lang == 'fr' %}Reste disponible{% else %}Remaining{% endif %}
+            </span>
+
+            <h2>{{ "%.2f"|format(total_remaining|default(0)) }} XOF</h2>
+        </div>
+    </div>
+</div>
+
+<section class="card">
+    <div class="card-header">
+        <h2>
+            {% if lang == 'fr' %}
+                Définir mon budget total
+            {% else %}
+                Set my total budget
+            {% endif %}
+        </h2>
+    </div>
+
+    <p class="budget-help-text">
+        {% if lang == 'fr' %}
+            Choisis le montant maximum que tu souhaites dépenser pendant ce mois.
+            Ce montant est indépendant des limites définies par catégorie.
+        {% else %}
+            Choose the maximum amount you want to spend this month.
+            This amount is independent of category limits.
+        {% endif %}
+    </p>
+
+    <form
+        method="POST"
+        action="{{ url_for('budgets', month=selected_month) }}"
+        class="total-budget-form"
+    >
+        <input type="hidden" name="form_action" value="save_total_budget">
+
+        <div class="form-group">
+            <label for="total_budget">
+                {% if lang == 'fr' %}
+                    Budget total du mois
+                {% else %}
+                    Monthly total budget
+                {% endif %}
+            </label>
+
+            <input
+                type="number"
+                name="total_budget"
+                id="total_budget"
+                step="0.01"
+                min="0"
+                value="{{ total_budget|default(0) }}"
+                placeholder="{% if lang == 'fr' %}Exemple : 200000{% else %}Example: 200000{% endif %}"
+                required
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            {% if lang == 'fr' %}
+                Enregistrer le budget total
+            {% else %}
+                Save total budget
+            {% endif %}
+        </button>
+    </form>
+</section>
+
+<section class="card">
+    <div class="card-header">
+        <h2>
+            {% if lang == 'fr' %}
+                Définir une limite par catégorie
+            {% else %}
+                Set a category limit
+            {% endif %}
+        </h2>
+    </div>
+
+    {% if expense_categories %}
+        <form
+            method="POST"
+            action="{{ url_for('budgets', month=selected_month) }}"
+            class="budget-form"
+        >
+            <input type="hidden" name="form_action" value="save_category_budget">
+
+            <div class="form-group">
+                <label for="category_id">
+                    {% if lang == 'fr' %}
+                        Catégorie de dépense
+                    {% else %}
+                        Expense category
+                    {% endif %}
+                </label>
+
+                <select name="category_id" id="category_id" required>
+                    {% for category in expense_categories %}
+                        <option value="{{ category.id }}">
+                            {{ category.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="amount_limit">
+                    {% if lang == 'fr' %}
+                        Limite de dépenses
+                    {% else %}
+                        Spending limit
+                    {% endif %}
+                </label>
+
+                <input
+                    type="number"
+                    name="amount_limit"
+                    id="amount_limit"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="{% if lang == 'fr' %}Exemple : 50000{% else %}Example: 50000{% endif %}"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                {% if lang == 'fr' %}
+                    Enregistrer la limite
+                {% else %}
+                    Save limit
+                {% endif %}
+            </button>
+        </form>
+    {% else %}
+        <p class="empty-message">
+            {% if lang == 'fr' %}
+                Aucune catégorie de dépense disponible.
+            {% else %}
+                No expense category available.
+            {% endif %}
+        </p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <div class="card-header">
+        <h2>
+            {% if lang == 'fr' %}
+                Limites par catégorie
+            {% else %}
+                Category limits
+            {% endif %}
+            — {{ selected_month }}
+        </h2>
+    </div>
+
+    {% if budgets %}
+        <div class="budget-list">
+            {% for budget in budgets %}
+                <div class="budget-item {{ 'exceeded' if budget.is_exceeded }}">
+                    <div class="budget-top">
+                        <div>
+                            <span class="category-badge">
+                                {{ budget.category_name }}
+                            </span>
+
+                            <p class="budget-amounts">
+                                {% if lang == 'fr' %}Dépensé :{% else %}Spent:{% endif %}
+                                <strong>
+                                    {{ "%.2f"|format(budget.spent|float) }} XOF
+                                </strong>
+                                {% if lang == 'fr' %}sur{% else %}of{% endif %}
+                                {{ "%.2f"|format(budget.amount_limit|float) }} XOF
+                            </p>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button
+                                type="button"
+                                class="btn-icon edit edit-budget-button"
+                                data-budget-id="{{ budget.id }}"
+                                data-budget-name="{{ budget.category_name }}"
+                                data-budget-limit="{{ budget.amount_limit }}"
+                                title="{{ t('edit') }}"
+                            >
+                                ✏️
+                            </button>
+
+                           <form
+    method="POST"
+    action="{{ url_for('delete_budget', budget_id=budget.id) }}"
+    class="delete-budget-form"
+    data-confirm-message="{% if lang == 'fr' %}Supprimer cette limite de budget ?{% else %}Delete this budget limit?{% endif %}"
+>
+    <button
+        type="submit"
+        class="btn-icon delete"
+        title="{{ t('delete') }}"
+    >
+        🗑️
+    </button>
+</form>
+                        </div>
+                    </div>
+
+                    <div class="progress">
+                        <div
+                            class="progress-bar {{ 'danger' if budget.is_exceeded else 'success' }}"
+                            data-width="{{ budget.percentage }}"
+                        ></div>
+                    </div>
+
+                    <div class="budget-status">
+                        {% if budget.is_exceeded %}
+                            <span class="status danger">
+                                {% if lang == 'fr' %}
+                                    ⚠️ Dépassement de
+                                {% else %}
+                                    ⚠️ Over by
+                                {% endif %}
+                                {{ "%.2f"|format(budget.spent - budget.amount_limit) }}
+                                XOF
+                            </span>
+                        {% else %}
+                            <span class="status success">
+                                {% if lang == 'fr' %}Reste :{% else %}Remaining:{% endif %}
+                                {{ "%.2f"|format(budget.remaining) }}
+                                XOF
+                            </span>
+                        {% endif %}
+
+                        <span class="percentage">
+                            {{ "%.1f"|format(budget.actual_percentage) }}%
+                        </span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="empty-message">
+            {% if lang == 'fr' %}
+                Aucune limite par catégorie pour ce mois.
+            {% else %}
+                No category limits for this month.
+            {% endif %}
+        </p>
+    {% endif %}
+</section>
+
+<div class="modal" id="editBudgetModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>
+                {% if lang == 'fr' %}
+                    Modifier la limite
+                {% else %}
+                    Edit limit
+                {% endif %}
+            </h2>
+
+            <button
+                type="button"
+                class="close-btn"
+                id="closeBudgetModal"
+                aria-label="{% if lang == 'fr' %}Fermer{% else %}Close{% endif %}"
+            >
+                ×
+            </button>
+        </div>
+
+        <form method="POST" id="editBudgetForm">
+            <input
+                type="hidden"
+                name="month"
+                value="{{ selected_month }}"
+            >
+
+            <div class="form-group">
+                <label for="edit-budget-category">{{ t('category') }}</label>
+
+                <input
+                    type="text"
+                    id="edit-budget-category"
+                    readonly
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="edit-budget-limit">
+                    {% if lang == 'fr' %}
+                        Nouvelle limite
+                    {% else %}
+                        New limit
+                    {% endif %}
+                </label>
+
+                <input
+                    type="number"
+                    name="amount_limit"
+                    id="edit-budget-limit"
+                    min="0.01"
+                    step="0.01"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                {% if lang == 'fr' %}
+                    Mettre à jour la limite
+                {% else %}
+                    Update limit
+                {% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("editBudgetModal");
+    const form = document.getElementById("editBudgetForm");
+    const closeButton = document.getElementById("closeBudgetModal");
+
+    document.querySelectorAll(".edit-budget-button").forEach(function (button) {
+        button.addEventListener("click", function () {
+            if (!modal || !form) {
+                return;
+            }
+
+            form.action = "/budgets/edit/" + button.dataset.budgetId;
+
+            document.getElementById("edit-budget-category").value =
+                button.dataset.budgetName;
+
+            document.getElementById("edit-budget-limit").value =
+                button.dataset.budgetLimit;
+
+            modal.classList.add("open");
+        });
+    });
+
+    if (closeButton) {
+        closeButton.addEventListener("click", function () {
+            modal.classList.remove("open");
+        });
+    }
+
+    if (modal) {
+        modal.addEventListener("click", function (event) {
+            if (event.target === modal) {
+                modal.classList.remove("open");
+            }
+        });
+    }
+
+    document.querySelectorAll(".progress-bar[data-width]").forEach(function (bar) {
+        const width = parseFloat(bar.dataset.width);
+
+        if (!isNaN(width)) {
+            bar.style.width = Math.min(Math.max(width, 0), 100) + "%";
+        }
+    });
+    document.querySelectorAll(".delete-budget-form").forEach(function (form) {
+        form.addEventListener("submit", function (event) {
+            const message =
+                form.dataset.confirmMessage ||
+                "Delete this budget limit?";
+
+            if (!confirm(message)) {
+                event.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

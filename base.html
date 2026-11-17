@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="{{ lang|default('fr') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}Equilibrium{% endblock %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+    {% if session.get('user_id') %}
+            <header class="topbar" id="mobileMenu">
+        <div class="topbar-content">
+
+            <div class="topbar-mobile-header">
+                <a href="{{ url_for('dashboard') }}" class="brand">
+                    <span class="brand-icon">⚖</span>
+                    <span>Equilibrium</span>
+                </a>
+
+                <button
+                    type="button"
+                    class="menu-toggle"
+                    id="menuToggle"
+                    aria-label="Ouvrir le menu"
+                    aria-expanded="false"
+                >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+
+            <nav class="main-nav" id="mainNav">
+                <a
+                    href="{{ url_for('dashboard') }}"
+                    class="{{ 'active' if request.endpoint == 'dashboard' }}"
+                >
+                    <span class="nav-icon">▦</span>
+                    <span>{{ t('dashboard') }}</span>
+                </a>
+
+                <a
+                    href="{{ url_for('transactions') }}"
+                    class="{{ 'active' if request.endpoint == 'transactions' }}"
+                >
+                    <span class="nav-icon">↔</span>
+                    <span>{{ t('transactions') }}</span>
+                </a>
+
+                <a
+                    href="{{ url_for('budgets') }}"
+                    class="{{ 'active' if request.endpoint == 'budgets' }}"
+                >
+                    <span class="nav-icon">◐</span>
+                    <span>{{ t('budgets') }}</span>
+                </a>
+
+                <a
+                    href="{{ url_for('analytics') }}"
+                    class="{{ 'active' if request.endpoint == 'analytics' }}"
+                >
+                    <span class="nav-icon">▥</span>
+                    <span>{{ t('analytics') }}</span>
+                </a>
+
+                <a
+                    href="{{ url_for('settings') }}"
+                    class="{{ 'active' if request.endpoint == 'settings' }}"
+                >
+                    <span class="nav-icon">⚙</span>
+                    <span>{{ t('settings') }}</span>
+                </a>
+            </nav>
+
+            <div class="user-actions" id="userActions">
+                <div class="header-controls desktop-controls">
+    <a
+        href="{{ url_for('set_language', language='en' if lang == 'fr' else 'fr') }}"
+        class="control-btn"
+        title="{{ 'Switch to English' if lang == 'fr' else 'Passer en français' }}"
+    >
+        {{ 'EN' if lang == 'fr' else 'FR' }}
+    </a>
+
+    <button
+        type="button"
+        class="control-btn theme-toggle"
+        id="themeToggle"
+        aria-label="Changer le thème"
+    >
+        <span class="theme-icon-light">☀</span>
+        <span class="theme-icon-dark">☾</span>
+    </button>
+</div>
+                <a href="{{ url_for('export_csv') }}" class="sidebar-export">
+                    <span>↥</span>
+                    <span>{{ t('export_csv') }}</span>
+                </a>
+
+                <a href="{{ url_for('settings') }}" class="profile-card">
+                    <span class="profile-avatar">
+                        {{ session.get('user_name', 'U')[0]|upper }}
+                    </span>
+
+                    <span class="profile-info">
+                        <span class="profile-name">
+                            {{ session.get('user_name', 'Utilisateur') }}
+                        </span>
+
+                        <span class="profile-role">
+                            {{ t('profile') }}
+                        </span>
+                    </span>
+                </a>
+
+                <a href="{{ url_for('logout') }}" class="sidebar-logout">
+                    <span>↪</span>
+                    <span>{{ t('logout') }}</span>
+                </a>
+            </div>
+
+        </div>
+    </header>
+{% endif %}
+    
+    <main class="page-content">
+        <div class="container">
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>
+                © {{ now().year if now is defined else '2026' }}
+                Equilibrium
+            </p>
+        </div>
+    </footer>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const menuToggle = document.getElementById("menuToggle");
+        const mobileMenu = document.getElementById("mobileMenu");
+
+        if (menuToggle && mobileMenu) {
+            menuToggle.addEventListener("click", function () {
+                const isOpen = mobileMenu.classList.toggle("open");
+
+                menuToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+                menuToggle.classList.toggle("active", isOpen);
+            });
+        }
+    });
+</script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+
+    
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const savedTheme = localStorage.getItem("theme") || "light";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+
+        const themeToggle = document.getElementById("themeToggle");
+
+        if (themeToggle) {
+            themeToggle.addEventListener("click", function () {
+                const currentTheme =
+                    document.documentElement.getAttribute("data-theme");
+                const newTheme = currentTheme === "dark" ? "light" : "dark";
+
+                document.documentElement.setAttribute("data-theme", newTheme);
+                localStorage.setItem("theme", newTheme);
+            });
+        }
+    });
+</script>
+</html>

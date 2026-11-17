@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Catégories — Personal Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Catégories</h1>
+        <p>Organise tes revenus et dépenses par catégorie.</p>
+    </div>
+</div>
+
+<section class="card">
+    <div class="card-header">
+        <h2>Ajouter une catégorie</h2>
+    </div>
+
+    <form method="POST" action="{{ url_for('add_category') }}" class="category-form">
+        <div class="form-group">
+            <label for="name">Nom de la catégorie</label>
+            <input
+                type="text"
+                name="name"
+                id="name"
+                placeholder="Exemple : Nourriture, Salaire, Transport"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="type">Type</label>
+            <select name="type" id="type" required>
+                <option value="expense">Dépense</option>
+                <option value="income">Revenu</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="color">Couleur</label>
+            <input
+                type="color"
+                name="color"
+                id="color"
+                value="#635BFF"
+                required
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Ajouter
+        </button>
+    </form>
+</section>
+
+<section class="card">
+    <div class="card-header">
+        <h2>Mes catégories</h2>
+    </div>
+
+    {% if categories %}
+        <div class="table-wrapper">
+            <table class="transactions-table">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Type</th>
+                        <th>Couleur</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for category in categories %}
+                        <tr>
+                            <td>
+                                <span class="category-badge"
+                                      data-color="{{ category.color }}">
+                                    {{ category.name }}
+                                </span>
+                            </td>
+
+                            <td>
+                                <span class="type-badge {{ category.type }}">
+                                    {{ 'Revenu' if category.type == 'income' else 'Dépense' }}
+                                </span>
+                            </td>
+
+                            <td>
+                                <span class="color-dot"
+                                      data-color="{{ category.color }}"></span>
+                            </td>
+
+                            <td>
+                                <div class="action-buttons">
+                                    <button
+                                        type="button"
+                                        class="btn-icon edit edit-category-button"
+                                        data-id="{{ category.id }}"
+                                        data-name="{{ category.name }}"
+                                        data-type="{{ category.type }}"
+                                        data-color="{{ category.color }}"
+                                    >
+                                        ✏️
+                                    </button>
+
+                                    <form method="POST"
+                                          action="{{ url_for('delete_category', category_id=category.id) }}"
+                                          class="delete-form"
+                                          data-confirm-message="Supprimer cette catégorie ?">
+                                        <button type="submit" class="btn-icon delete">
+                                            🗑️
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="empty-message">
+            Aucune catégorie disponible.
+        </p>
+    {% endif %}
+</section>
+
+<!-- Modal : modifier une catégorie -->
+<div class="modal" id="categoryModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Modifier la catégorie</h2>
+
+            <button type="button" class="close-btn" data-close-modal="categoryModal">
+                ×
+            </button>
+        </div>
+
+        <form method="POST" id="categoryForm">
+            <div class="form-group">
+                <label for="edit-name">Nom</label>
+                <input
+                    type="text"
+                    name="name"
+                    id="edit-name"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="edit-type">Type</label>
+                <select name="type" id="edit-type" required>
+                    <option value="expense">Dépense</option>
+                    <option value="income">Revenu</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-color">Couleur</label>
+                <input
+                    type="color"
+                    name="color"
+                    id="edit-color"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                Mettre à jour
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

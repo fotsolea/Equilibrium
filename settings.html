@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('settings') }} — Equilibrium{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ t('settings') }}</h1>
+        <p>
+            {% if lang == 'fr' %}
+                Gère ton profil, ta devise, ta langue et ton mot de passe.
+            {% else %}
+                Manage your profile, currency, language and password.
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="settings-grid">
+    <section class="card">
+        <div class="card-header">
+            <h2>
+                {% if lang == 'fr' %}Mon profil et préférences{% else %}Profile and preferences{% endif %}
+            </h2>
+        </div>
+
+        <form method="POST" action="{{ url_for('settings') }}" class="settings-form">
+            <div class="form-group">
+                <label for="full_name">
+                    {% if lang == 'fr' %}Nom complet{% else %}Full name{% endif %}
+                </label>
+
+                <input
+                    type="text"
+                    id="full_name"
+                    name="full_name"
+                    value="{{ user.full_name }}"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email">
+                    {% if lang == 'fr' %}Adresse e-mail{% else %}Email address{% endif %}
+                </label>
+
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value="{{ user.email }}"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="currency">
+                    {% if lang == 'fr' %}Devise{% else %}Currency{% endif %}
+                </label>
+
+                <select name="currency" id="currency">
+                    <option value="XOF" {% if user.currency == 'XOF' %}selected{% endif %}>
+                        Franc CFA (XOF)
+                    </option>
+
+                    <option value="EUR" {% if user.currency == 'EUR' %}selected{% endif %}>
+                        Euro (EUR)
+                    </option>
+
+                    <option value="USD" {% if user.currency == 'USD' %}selected{% endif %}>
+                        US Dollar (USD)
+                    </option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="language">{{ t('language') }}</label>
+
+                <select name="language" id="language">
+                    <option value="fr" {% if user.language == 'fr' %}selected{% endif %}>
+                        🇫🇷 {{ t('french') }}
+                    </option>
+
+                    <option value="en" {% if user.language == 'en' %}selected{% endif %}>
+                        🇬🇧 {{ t('english') }}
+                    </option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                {% if lang == 'fr' %}
+                    Enregistrer les modifications
+                {% else %}
+                    Save changes
+                {% endif %}
+            </button>
+        </form>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>
+                {% if lang == 'fr' %}Changer le mot de passe{% else %}Change password{% endif %}
+            </h2>
+        </div>
+
+        <form method="POST"
+              action="{{ url_for('change_password') }}"
+              class="settings-form">
+
+            <div class="form-group">
+                <label for="current_password">
+                    {% if lang == 'fr' %}Mot de passe actuel{% else %}Current password{% endif %}
+                </label>
+
+                <input
+                    type="password"
+                    id="current_password"
+                    name="current_password"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="new_password">
+                    {% if lang == 'fr' %}Nouveau mot de passe{% else %}New password{% endif %}
+                </label>
+
+                <input
+                    type="password"
+                    id="new_password"
+                    name="new_password"
+                    minlength="6"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">
+                    {% if lang == 'fr' %}
+                        Confirmer le nouveau mot de passe
+                    {% else %}
+                        Confirm new password
+                    {% endif %}
+                </label>
+
+                <input
+                    type="password"
+                    id="confirm_password"
+                    name="confirm_password"
+                    minlength="6"
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+                {% if lang == 'fr' %}
+                    Mettre à jour le mot de passe
+                {% else %}
+                    Update password
+                {% endif %}
+            </button>
+        </form>
+    </section>
+</div>
+{% endblock %}
